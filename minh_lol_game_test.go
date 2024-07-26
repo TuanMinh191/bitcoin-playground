@@ -15,6 +15,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/nghuyenthevinh2000/bitcoin-playground/testhelper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,15 +23,15 @@ import (
 // win to get 100000, draw: transfer to dealer 50000
 // go test -v -run TestMinhLolGame
 func TestMinhLolGame(t *testing.T) {
-	suite := TestSuite{}
-	suite.setupSimNetSuite(t)
+	suite := testhelper.TestSuite{}
+	suite.SetupSimNetSuite(t)
 
 	// Alice, Bob wallet
-	alice := suite.openWallet(t, ALICE_WALLET_SEED, "alice")
-	bob := suite.openWallet(t, BOB_WALLET_SEED, "bob")
+	alice := suite.OpenWallet(t, ALICE_WALLET_SEED, "alice")
+	bob := suite.OpenWallet(t, BOB_WALLET_SEED, "bob")
 
 	// dealer
-	dealer := suite.openWallet(t, OLIVIA_WALLET_SEED, "olivia")
+	dealer := suite.OpenWallet(t, OLIVIA_WALLET_SEED, "olivia")
 	// suite.fundWallet(dealer, btcutil.Amount(10000000))
 
 	// check balance
@@ -44,9 +45,9 @@ func TestMinhLolGame(t *testing.T) {
 	t.Logf("dealerBalance: %d", dealerBalance)
 
 	// priv key
-	aliceWifPriv := suite.exportWIFPriv(alice)
-	bobWifPriv := suite.exportWIFPriv(bob)
-	dealerWifPriv := suite.exportWIFPriv(dealer)
+	aliceWifPriv := suite.ExportWIFPriv(alice)
+	bobWifPriv := suite.ExportWIFPriv(bob)
+	dealerWifPriv := suite.ExportWIFPriv(dealer)
 
 	t.Logf("aliceWifPriv: %s", aliceWifPriv)
 	t.Logf("bobWifPriv: %s", bobWifPriv)
@@ -58,20 +59,20 @@ func TestMinhLolGame(t *testing.T) {
 	dealerPk := dealerWifPriv.SerializePubKey()
 
 	// build script
-	lolGameScript := suite.buildWitnessScriptLolGame(alicePk, bobPk, dealerPk)
+	lolGameScript := buildWitnessScriptLolGame(alicePk, bobPk, dealerPk)
 	t.Logf("lolGameScript: %x", lolGameScript)
 
 	// create a P2WSH address
 	lolGameScriptHash := sha256.Sum256(lolGameScript)
-	address, err := btcutil.NewAddressWitnessScriptHash(lolGameScriptHash[:], suite.btcdChainConfig)
+	address, err := btcutil.NewAddressWitnessScriptHash(lolGameScriptHash[:], suite.BtcdChainConfig)
 	assert.Nil(t, err)
 	t.Logf("P2WSH contract address: %s", address.EncodeAddress())
 
 	// witness script funding transaction
-	commitHash, _ := suite.walletClient.SendToAddress(address, btcutil.Amount(546))
+	commitHash, _ := suite.WalletClient.SendToAddress(address, btcutil.Amount(546))
 	time.Sleep(3 * time.Second)
-	suite.generateBlocks(1)
-	rawCommitTx, _ := suite.chainClient.GetRawTransaction(commitHash)
+	suite.GenerateBlocks(1)
+	rawCommitTx, _ := suite.ChainClient.GetRawTransaction(commitHash)
 	t.Logf("Commitment tx: %+v", rawCommitTx.MsgTx())
 
 	// dealer address wallet
@@ -79,7 +80,7 @@ func TestMinhLolGame(t *testing.T) {
 	t.Logf("dealerAddr: %s", dealerAddr.EncodeAddress())
 
 	// chose utxo
-	dealerUtxos, _ := suite.chainClient.ListUnspentMinMaxAddresses(1, 9999999, []btcutil.Address{dealerAddr})
+	dealerUtxos, _ := suite.ChainClient.ListUnspentMinMaxAddresses(1, 9999999, []btcutil.Address{dealerAddr})
 	t.Logf("dealerUtxos: %d", len(dealerUtxos))
 	// Filter UTXOs with amount > 130000 sat, 100000 for bet, 30000 for fee
 	var chosenUtxo btcjson.ListUnspentResult
@@ -151,7 +152,7 @@ func TestMinhLolGame(t *testing.T) {
 
 	// Send Raw transaction
 	finalTx := psbtLolGame.UnsignedTx
-	txHash, err := suite.chainClient.SendRawTransaction(finalTx, false)
+	txHash, err := suite.ChainClient.SendRawTransaction(finalTx, false)
 	if err != nil {
 		log.Fatalf("error sending transaction: %v", err)
 	}
@@ -159,7 +160,7 @@ func TestMinhLolGame(t *testing.T) {
 
 	// generate a block to confirm the transaction
 	time.Sleep(3 * time.Second)
-	suite.generateBlocks(1)
+	suite.GenerateBlocks(1)
 
 	// check the balance of alice
 	time.Sleep(3 * time.Second)
@@ -168,7 +169,7 @@ func TestMinhLolGame(t *testing.T) {
 	t.Logf("Alice balance: %d", aliceBalance)
 }
 
-func (s *TestSuite) buildWitnessScriptLolGame(alicePk []byte, bobPk []byte, dealerPk []byte) []byte {
+func buildWitnessScriptLolGame(alicePk []byte, bobPk []byte, dealerPk []byte) []byte {
 	betT1Hash := sha256.Sum256([]byte("T1 win"))
 	fmt.Printf("betT1Hash: %x\n", betT1Hash)
 	betGenGHash := sha256.Sum256([]byte("GenG win"))
@@ -215,8 +216,7 @@ func (s *TestSuite) buildWitnessScriptLolGame(alicePk []byte, bobPk []byte, deal
 	script.AddOp(txscript.OP_ENDIF)
 	script.AddOp(txscript.OP_CHECKSIG)
 
-	pkScript, err := script.Script()
-	assert.Nil(s.t, err)
+	pkScript, _ := script.Script()
 
 	return pkScript
 }
