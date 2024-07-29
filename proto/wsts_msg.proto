@@ -7,3 +7,38 @@ message MsgUpdateVP {
     int64 source = 1;
     bytes vp = 2;
 }
+
+message MsgUpdateProofs {
+    int64 source = 1;
+    bytes secret_proofs = 2;
+    repeated bytes polynomial_commitments = 3;
+}
+
+message MsgSecretShares {
+    int64 source = 1;
+    repeated SecretShares secret_shares = 2;
+}
+
+message SecretShares {
+    int64 posi = 1;
+    bytes secret_shares = 2;
+}
+
+message MsgUpdateNonceCommitments {
+    int64 source = 1;
+    repeated NonceCommitments nonce_commitments = 2;
+}
+
+message NonceCommitments {
+    bytes d = 1;
+    bytes e = 2;
+}
+
+message MsgWithdraw {
+    string receiver = 1;
+    int64 amount = 2;
+}
+
+message MsgBatchWithdraw {
+    repeated MsgWithdraw withdraw_batch = 1;
+}

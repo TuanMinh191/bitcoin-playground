@@ -48,11 +48,23 @@ type FrostParticipant struct {
 func TestCreateFrostParticipant(t *testing.T) {
 	suite := testhelper.TestSuite{}
 	suite.SetupStaticSimNetSuite(t)
+	defer suite.StaticSimNetTearDown()
 
 	n := 7
 	thres := 5
 
 	newFrostParticipantDKG(&suite, thres, n, 1)
+}
+
+// go test -v -run ^TestFrostCalculateShares$ github.com/nghuyenthevinh2000/bitcoin-playground
+func TestFrostCalculateShares(t *testing.T) {
+	suite := new(testhelper.TestSuite)
+	suite.SetupStaticSimNetSuite(t)
+	defer suite.StaticSimNetTearDown()
+	participant := testhelper.NewFrostParticipant(suite, 5, 3, 1, nil)
+	assert.NotNil(t, participant)
+
+	participant.CalculateSecretShares()
 }
 
 // this is a minimal FROST implementation for educational purposes
@@ -62,6 +74,7 @@ func TestCreateFrostParticipant(t *testing.T) {
 func TestFrostSignature(t *testing.T) {
 	suite := testhelper.TestSuite{}
 	suite.SetupStaticSimNetSuite(t)
+	defer suite.StaticSimNetTearDown()
 
 	n := 7
 	thres := 5
