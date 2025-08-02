@@ -10,7 +10,7 @@ This repository goal is to find and quickly test ideas about Bitcoin products an
 
 ![one piece](knowledge/assets/going_merry.webp)
 
-# Bitcoin building blocks
+# Bitcoin building blocks (covenants)
 A Bitcoin product will consist of many building blocks. Here is a list of discovered building blocks so far in Bitcoin. For any readers out there, please help me complete my knowledge gap so I can one day come up with a new solution and onboard you to our pirate ship 😎😎😎
 
 My contact: nghuyenthevinh@gmail.com
@@ -63,3 +63,11 @@ This solution group relies on `OP_RETURN`
 
 1. [RGB: single-use seal](https://docs.rgb.info/distributed-computing-concepts/single-use-seals)
 2. [Ordinals](https://docs.ordinals.com/)
+
+## Taproot hacks
+Taproot upgrade introduces two special properties to Bitcoin script:
+* Tapscript allows Bitcoin scripts to be branched in a tree, instead of clustering them in a single script through OR. When revealing, only a branch needs to be revealed instead of the whole script.
+* Schnorr aggregate properties allow mathematical hacks. Most notable one is the hack to evaluate arbitrary data through `OP_CAT`
+
+1. [BitVM circuit tree commitment](https://bitvm.org/bitvm.pdf): a frauf-proof system by evaluating contract outputs through Tapscript tree
+2. [MATT](https://covenants.info/proposals/matt/): a fraud-proof system for smart contract (using OP_CAT)

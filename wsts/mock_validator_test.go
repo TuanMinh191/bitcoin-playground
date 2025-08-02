@@ -176,7 +176,7 @@ func (v *MockValidator) ReceiveMessageOnChainLoop() {
 				// check if enough adapt sigs have been received
 				// if enough, then verifiy and signal transaction ready to be broadcasted
 				if v.isEnoughAdaptSig(0, enough_honest) {
-					v.handleFinalizeTransaction()
+					v.handleFinalizeTransaction(signing_index)
 				}
 			case MSG_STOP:
 				return
@@ -520,7 +520,7 @@ func (v *MockValidator) verifyAdaptSig(posi, signing_index int64, adapt_sig *sch
 	key_range := v.protocolStorage.GetKeyRange(strconv.FormatInt(posi, 10))
 	public_signing_share := make(map[int64]*btcec.PublicKey)
 	for i := key_range[0]; i < key_range[1]; i++ {
-		public_signing_share[i] = v.frost.PublicSigningShares[i]
+		public_signing_share[i] = v.frost.GetPublicSigningShares(i)
 	}
 
 	return v.frost.WeightedPartialVerification(adapt_sig, signing_index, posi, sigHash, honest_keys, public_signing_share)
@@ -582,7 +582,7 @@ func (v *MockValidator) verifySharesAndCalculateLongTermKey() {
 	v.logger.Printf("Time to calculate public signing shares: %v\n", time.Since(time_now))
 
 	// calculate group public key
-	groupkey := v.frost.CalculateGroupPublicKey(v.partyNum)
+	groupkey := v.frost.CalculateGroupPublicKey()
 	v.logger.Printf("group public key: %v\n", groupkey)
 }
 
@@ -658,7 +658,7 @@ func (v *MockValidator) handleTxs(hType txscript.SigHashType) ([32]byte, *wire.M
 	return ([32]byte)(sigHash), btc_tx
 }
 
-func (v *MockValidator) handleFinalizeTransaction() {
+func (v *MockValidator) handleFinalizeTransaction(signing_index int64) {
 	honest := make([]int64, 0)
 	for i := int64(1); i <= v.partyNum; i++ {
 		if _, ok := v.dishonestVals[i]; !ok {
@@ -673,6 +673,8 @@ func (v *MockValidator) handleFinalizeTransaction() {
 		z_i.SetByteSlice(adapt_sig.Serialize()[32:64])
 		z.Add(z_i)
 	}
+
+	sig := schnorr.NewSignature(&v.frost.AggrNonceCommitment[signing_index].X, z)
 
 	// sending the transaction with the final signature
 	prev_checkpoint := v.getBtcCheckPoint(v.btcCheckpointheight - 1)
@@ -691,7 +693,21 @@ func (v *MockValidator) handleFinalizeTransaction() {
 	)
 
 	hType := txscript.SigHashDefault
-	_, btc_tx := v.handleTxs(hType)
+	sigHash, btc_tx := v.handleTxs(hType)
+
+	// pre-check
+	ok := sig.Verify(sigHash[:], v.frost.GroupPublicKey)
+	assert.True(v.suite.T, ok)
+
+	schnorrSigBytes := sig.Serialize()
+	if hType != txscript.SigHashDefault {
+		schnorrSigBytes = append(schnorrSigBytes, byte(hType))
+	}
+	witness := wire.TxWitness{
+		schnorrSigBytes,
+	}
+	btc_tx.TxIn[0].Witness = witness
+
 	v.suite.HashCache.AddSigHashes(btc_tx, inputFetcher)
 
 	err = blockchain.ValidateTransactionScripts(
